@@ -30,6 +30,15 @@
 #define BLUE "\033[34m"
 #define MAGENTA "\033[35m"
 
+// Time zones are stupid
+#define MAX_ZONES 7
+
+typedef struct {
+	const char* name;
+	const char* display_name;
+	int offset; // offset from UTC, duh
+} TimeZone;
+
 // FUNctions
 void clearScreen(void);
 void displayTime(void);
@@ -42,9 +51,22 @@ void restoreTerminal(void);
 void displayUpdateMessage(void);
 void displayUnixEpoch(void);
 void cleanExit(int signum);
+void displayTimeZoneMenu(void);
+void adjustTimeForZone(struct tm *timeinfo);
 
 // Ooh, Global variables. Exciting!
 static struct termios orig_termios;
+static TimeZone time_zones[MAX_ZONES] = {
+	{"UTC", "The Most Useful Time", 0},
+	{"EST", "A Self-Important Time", -5},
+	{"CST", "The Forgotten Time", -6},
+	{"MST", "Lumberjack Time.", -7},
+	{"PST", "Bearded Barista Time", -8},
+	{"JST", "Weeb Time", +9}, 
+	{"GMT", "British Hubris Time", 0}
+};
+static int current_zone = 0; // Default to correct time (UTC)
+static bool show_zone = false;
 
 // The real action
 int main(void) {
@@ -79,6 +101,20 @@ int main(void) {
 					displayTime();
 					displayMenu();
 					break;
+
+				case 'z':
+					displayTimeZoneMenu();
+					char zone_choice = getchar();
+					int choice = zone_choice - '0';
+					if (choice >= 1 && choice <= MAX_ZONES) {
+						current_zone = choice - 1;
+						show_zone = true;
+					}
+					clearScreen();
+					displayHeader();
+					displayTime();
+					displayMenu();
+					break;
 					
 				case 'q':
 					running = false;
@@ -95,6 +131,7 @@ int main(void) {
 
 // A needlessly fancy display
 void displayHeader(void) {
+	clearScreen();
 	printf("%s%s+-----------------------------+%s\n", BOLD, BLUE, RESET);
 	printf("%s%s|    Dumb Time Program 2.4    |%s\n", BOLD, BLUE, RESET);
 	printf("%s%s+-----------------------------+%s\n", BOLD, BLUE, RESET);
@@ -107,6 +144,9 @@ void displayTime(void) {
 	char date_str[50];
 	struct tm *local_time = localtime(&now);
 
+	// Adjust for zone
+	adjustTimeForZone(local_time);
+
 	// Formatting for the sake of formatting
 	strftime(time_str, sizeof(time_str), "%H:%M", local_time);
 	strftime(date_str, sizeof(date_str), "%Y-%B-%d", local_time);
@@ -114,7 +154,13 @@ void displayTime(void) {
 	printf("%s%sDate: %s%s\n", BOLD, YELLOW, date_str, RESET);
 	printf("%s%sTime: %s%s\n\n", BOLD, GREEN, time_str, RESET);
 
-	displayTimeMessage(time_str);
+	// displayTimeMessage(time_str);
+
+	if (show_zone) {
+		printf("%s%sZone: %s%s\n", BOLD, MAGENTA, time_zones[current_zone].display_name, RESET);
+	}
+
+	printf("\n");
 }
 
 // Pointless conditional alerts! Yay!
@@ -133,11 +179,39 @@ void displayTimeMessage(const char* time_str) {
 	}
 }
 
+// Stupid Time Zone Menu
+void displayTimeZoneMenu(void) {
+	clearScreen();
+	printf("%s%s+-----------------------------+%s\n", BOLD, BLUE, RESET);
+	printf("%s%s|    Time Zones Are Stupid    |%s\n", BOLD, BLUE, RESET);
+	printf("%s%s+-----------------------------+%s\n", BOLD, BLUE, RESET);
+
+	for (int i = 0; i < MAX_ZONES; i++) {
+		printf("%s[%d]%s %s\n", YELLOW, i + 1, RESET, time_zones[i].display_name);
+	}
+
+	printf("\n%sPick a stupid time zone (1-%d):%s ", GREEN, MAX_ZONES, RESET);
+	fflush(stdout);
+	
+}
+
+// Converts the time
+void adjustTimeForZone(struct tm *timeinfo) {
+	time_t now = time(NULL);
+	struct tm *utc = gmtime(&now);
+
+	memcpy(timeinfo, utc, sizeof(struct tm));
+
+	timeinfo->tm_hour += time_zones[current_zone].offset;
+	mktime(timeinfo);  
+}
+
 // An expandable menu for more useless options!
 void displayMenu(void) {
 	printf("\n%s%sTime Wasting Options:%s\n", BOLD, BLUE, RESET);
 	printf("%s[T]%s Refresh Dumb Time\n", YELLOW, RESET);
 	printf("%s[U]%s Show Cool Time\n", YELLOW, RESET);
+	printf("%s[Z]%s Time Zone Zone\n", YELLOW, RESET);
 	printf("%s[Q]%s Quit Stupid Program\n\n", YELLOW, RESET);
 }
 
