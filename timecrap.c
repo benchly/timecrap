@@ -225,7 +225,7 @@ void clearScreen(void) {
    which I guess is a learning experience since I now 
    have a rudimentary understanding of processor 
    directives. Yes, AI helped me with this part, 
-   because it's less people to go ask a robot than 
+   because it's less painful to go ask a robot than 
    it is to look or ask for an answer on the Internet
    only to end up being led astray with some overly 
    complex flex-nuts solution, or general human 
